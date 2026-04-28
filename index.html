@@ -85,6 +85,9 @@
     .day-num.today { border: 1.5px solid var(--blue); color: var(--blue); font-weight: 500; }
     .pip { width: 28px; height: 5px; border-radius: 3px; background: var(--bg3); }
     .pip.done { background: var(--green); }
+    .day-bar-track { width: 28px; height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+    .day-bar-fill { height: 100%; border-radius: 3px; background: var(--green); transition: width 0.4s; }
+    .day-pct { font-size: 9px; color: var(--text3); margin-top: 2px; }
     .goal-row { padding: 12px 16px; border-bottom: 0.5px solid var(--border); }
     .goal-row:last-child { border-bottom: none; }
     .goal-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px; }
@@ -157,7 +160,7 @@
   </div>
 
   <div class="section">
-    <div class="section-label">Semana — workout · sueño · journal</div>
+    <div class="section-label">Semana — hábitos diarios</div>
     <div class="card">
       <div class="weekly-inner">
         <div class="day-label-row">
@@ -413,6 +416,8 @@ async function loadMetricas() {
 }
 
 // ─── WEEKLY ───────────────────────────────────────────────────────────────────
+const WEEKLY_HABITS = ['Meditar','Leer','Deporte','Registrar comida','Mirar inversiones','Dejar el teléfono','1 hora sin teléfono'];
+
 async function loadWeekly() {
   const el = document.getElementById('weekly');
   const data = await query(DB.weeklyHabits, null, [{ property: 'Date', direction: 'ascending' }]);
@@ -420,12 +425,17 @@ async function loadWeekly() {
   const hoyDia   = new Date().getDay();
   const todayIdx = hoyDia === 0 ? 6 : hoyDia - 1;
   el.innerHTML = data.results.slice(0,7).map((p, i) => {
-    const dateStr = p.properties['Date']?.date?.start;
-    const dayNum  = dateStr ? new Date(dateStr + 'T12:00:00').getDate() : i + 1;
-    const workout = p.properties['Workout']?.checkbox || false;
-    const sleep   = p.properties['8 hours sleep']?.checkbox || false;
-    const journal = p.properties['Journal']?.checkbox || false;
-    return `<div class="day-cell"><div class="day-num ${i===todayIdx?'today':''}">${dayNum}</div><div class="pip ${workout?'done':''}"></div><div class="pip ${sleep?'done':''}"></div><div class="pip ${journal?'done':''}"></div></div>`;
+    const dateStr  = p.properties['Date']?.date?.start;
+    const dayNum   = dateStr ? new Date(dateStr + 'T12:00:00').getDate() : i + 1;
+    const completados = WEEKLY_HABITS.filter(h => p.properties[h]?.checkbox).length;
+    const total    = WEEKLY_HABITS.length;
+    const pct      = Math.round((completados / total) * 100);
+    const color    = pct === 100 ? 'var(--green)' : pct >= 50 ? 'var(--blue)' : 'var(--amber)';
+    return `<div class="day-cell">
+      <div class="day-num ${i===todayIdx?'today':''}">${dayNum}</div>
+      <div class="day-bar-track"><div class="day-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      <div class="day-pct">${completados}/${total}</div>
+    </div>`;
   }).join('');
 }
 
