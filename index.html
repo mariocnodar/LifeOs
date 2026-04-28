@@ -362,9 +362,10 @@ async function loadMetricas() {
   let ingresos = 0, gastosTotales = 0, gastosVariables = 0, gastosCount = 0;
   if (movData?.results) {
     movData.results.forEach(p => {
-      const tipo     = p.properties.Tipo?.select?.name || '';
-      const fijo     = p.properties.Fijo?.checkbox || false;
-      const cantidad = p.properties.Cantidad?.number || 0;
+      const props    = p.properties || {};
+      const tipo     = props.Tipo?.select?.name || '';
+      const fijo     = props.Fijo?.checkbox === true;
+      const cantidad = props.Cantidad?.number || 0;
       if (tipo === 'Ingreso') {
         ingresos += cantidad;
       }
