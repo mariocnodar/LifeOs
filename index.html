@@ -51,7 +51,9 @@
     .habit-tag { font-size: 10px; color: var(--text3); background: var(--bg3); padding: 2px 8px; border-radius: 10px; }
     .task-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 0.5px solid var(--border); }
     .task-row:last-child { border-bottom: none; }
-    .task-box { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--bg3); flex-shrink: 0; }
+    .task-box { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--bg3); flex-shrink: 0; cursor: pointer; transition: all 0.2s; }
+    .task-box.completing { background: var(--green); border-color: var(--green); opacity: 0.5; }
+    .task-row.done-anim { opacity: 0; transition: opacity 0.3s; }
     .task-name { font-size: 14px; color: var(--text); flex: 1; }
     .badge { font-size: 10px; padding: 2px 8px; border-radius: 8px; font-weight: 500; }
     .badge-red { background: var(--red-bg); color: var(--red); }
@@ -250,6 +252,33 @@ async function loadHabitos() {
 }
 
 // ─── TAREAS ───────────────────────────────────────────────────────────────────
+async function completarTarea(pageId, rowEl) {
+  const box = rowEl.querySelector('.task-box');
+  box.classList.add('completing');
+  try {
+    const r = await fetch(PROXY, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pageId,
+        properties: { Completada: { checkbox: true } }
+      })
+    });
+    if (r.ok) {
+      rowEl.classList.add('done-anim');
+      setTimeout(() => rowEl.remove(), 300);
+      const el = document.getElementById('tareas');
+      if (!el.querySelector('.task-row')) {
+        el.innerHTML = '<div class="state-empty">Sin tareas pendientes ✓</div>';
+      }
+    } else {
+      box.classList.remove('completing');
+    }
+  } catch(e) {
+    box.classList.remove('completing');
+  }
+}
+
 async function loadTareas() {
   const el = document.getElementById('tareas');
   const data = await query(
@@ -261,10 +290,10 @@ async function loadTareas() {
   if (!data.results.length) { el.innerHTML = '<div class="state-empty">Sin tareas pendientes ✓</div>'; return; }
   const pm = { '🔴 Urgente': ['badge-red','🔴'], '🟡 Normal': ['badge-amber','🟡'], '🟢 Puede esperar': ['badge-green','🟢'] };
   el.innerHTML = data.results.map(p => {
-    const name = p.properties.Tarea?.title?.[0]?.plain_text || '—';
-    const prio = p.properties.Prioridad?.select?.name || '';
+    const name   = p.properties.Tarea?.title?.[0]?.plain_text || '—';
+    const prio   = p.properties.Prioridad?.select?.name || '';
     const [cls, emoji] = pm[prio] || ['badge-green',''];
-    return `<div class="task-row"><div class="task-box"></div><span class="task-name">${name}</span>${prio?`<span class="badge ${cls}">${emoji}</span>`:''}</div>`;
+    return `<div class="task-row" data-id="${p.id}"><div class="task-box" onclick="completarTarea('${p.id}', this.closest('.task-row'))"></div><span class="task-name">${name}</span>${prio?`<span class="badge ${cls}">${emoji}</span>`:''}</div>`;
   }).join('');
 }
 
