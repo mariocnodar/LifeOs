@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Life OS" />
+  <meta name="theme-color" content="#f5f5f7" />
+  <title>Life OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f5f5f7;
+      --bg2: #ffffff;
+      --bg3: #ebebed;
+      --border: rgba(0,0,0,0.08);
+      --text: #0a0a0a;
+      --text2: #666;
+      --text3: #aaa;
+      --green: #1a9e6e;
+      --green-bg: rgba(26,158,110,0.1);
+      --blue: #2563eb;
+      --blue-bg: rgba(37,99,235,0.1);
+      --amber: #d97706;
+      --amber-bg: rgba(217,119,6,0.1);
+      --red: #dc2626;
+      --red-bg: rgba(220,38,38,0.1);
+      --coral: #c2410c;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    body { padding-bottom: calc(env(safe-area-inset-bottom) + 24px); }
+    .app { max-width: 430px; margin: 0 auto; padding: 0 16px; }
+    .header { padding: 56px 0 24px; display: flex; justify-content: space-between; align-items: flex-end; }
+    .header h1 { font-size: 30px; font-weight: 500; letter-spacing: -0.5px; }
+    .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+    .fecha { font-size: 12px; color: var(--text2); }
+    .refresh-btn { background: var(--bg2); border: 0.5px solid var(--border); border-radius: 8px; padding: 5px 10px; font-size: 11px; color: var(--text2); cursor: pointer; font-family: 'DM Sans', sans-serif; }
+    .section { margin-bottom: 20px; }
+    .section-label { font-size: 10px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; padding-left: 2px; }
+    .card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: 16px; overflow: hidden; }
+    .habit-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 0.5px solid var(--border); }
+    .habit-row:last-child { border-bottom: none; }
+    .check { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--bg3); flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .check.done { background: var(--green); border-color: var(--green); }
+    .check.done::after { content: ''; display: block; width: 8px; height: 5px; border-left: 1.5px solid #fff; border-bottom: 1.5px solid #fff; transform: rotate(-45deg) translateY(-1px); }
+    .habit-name { font-size: 14px; color: var(--text); flex: 1; }
+    .habit-name.done { color: var(--text3); text-decoration: line-through; }
+    .habit-tag { font-size: 10px; color: var(--text3); background: var(--bg3); padding: 2px 8px; border-radius: 10px; }
+    .task-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 0.5px solid var(--border); }
+    .task-row:last-child { border-bottom: none; }
+    .task-box { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--bg3); flex-shrink: 0; }
+    .task-name { font-size: 14px; color: var(--text); flex: 1; }
+    .badge { font-size: 10px; padding: 2px 8px; border-radius: 8px; font-weight: 500; }
+    .badge-red { background: var(--red-bg); color: var(--red); }
+    .badge-amber { background: var(--amber-bg); color: var(--amber); }
+    .badge-green { background: var(--green-bg); color: var(--green); }
+    .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .metric { background: var(--bg2); border: 0.5px solid var(--border); border-radius: 14px; padding: 14px 16px; }
+    .metric-label { font-size: 11px; color: var(--text2); margin-bottom: 6px; }
+    .metric-value { font-size: 26px; font-weight: 300; letter-spacing: -1px; }
+    .metric-unit { font-size: 13px; color: var(--text2); font-weight: 400; }
+    .metric-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+    .cals-card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-top: 10px; }
+    .cals-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+    .cals-label { font-size: 11px; color: var(--text2); }
+    .cals-values { display: flex; gap: 16px; }
+    .cal-item { text-align: right; }
+    .cal-num { font-size: 20px; font-weight: 300; letter-spacing: -0.5px; }
+    .cal-sub { font-size: 10px; color: var(--text3); }
+    .cal-bar { height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+    .cal-fill { height: 100%; border-radius: 2px; background: var(--green); transition: width 0.4s; }
+    .weekly-inner { padding: 14px 16px; }
+    .weekly-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .day-label-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 8px; }
+    .day-lbl { font-size: 10px; color: var(--text3); text-align: center; }
+    .day-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .day-num { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--text2); }
+    .day-num.today { border: 1.5px solid var(--blue); color: var(--blue); font-weight: 500; }
+    .pip { width: 28px; height: 5px; border-radius: 3px; background: var(--bg3); }
+    .pip.done { background: var(--green); }
+    .goal-row { padding: 12px 16px; border-bottom: 0.5px solid var(--border); }
+    .goal-row:last-child { border-bottom: none; }
+    .goal-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px; }
+    .goal-name { font-size: 13px; color: var(--text); flex: 1; padding-right: 8px; }
+    .goal-days { font-size: 11px; color: var(--text3); white-space: nowrap; }
+    .goal-bar { height: 3px; background: var(--bg3); border-radius: 2px; }
+    .goal-fill { height: 100%; border-radius: 2px; }
+    .state-loading { padding: 16px; font-size: 13px; color: var(--text3); }
+    .state-empty { padding: 16px; font-size: 13px; color: var(--text3); text-align: center; }
+    .state-error { padding: 12px 16px; font-size: 12px; color: var(--red); }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Life OS</h1>
+    <div class="header-right">
+      <div class="fecha" id="fecha"></div>
+      <button class="refresh-btn" onclick="loadAll()">↻ Actualizar</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Hábitos de hoy</div>
+    <div class="card" id="habitos"><div class="state-loading">Cargando...</div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Tareas pendientes</div>
+    <div class="card" id="tareas"><div class="state-loading">Cargando...</div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Finanzas y calorías</div>
+    <div class="metrics-grid">
+      <div class="metric">
+        <div class="metric-label">Gastos este mes</div>
+        <div><span class="metric-value" id="gastos-val">—</span><span class="metric-unit"> €</span></div>
+        <div class="metric-sub" id="gastos-sub"> </div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Balance mes</div>
+        <div><span class="metric-value" id="balance-val">—</span><span class="metric-unit"> €</span></div>
+        <div class="metric-sub" id="balance-sub"> </div>
+      </div>
+    </div>
+    <div class="cals-card">
+      <div class="cals-row">
+        <span class="cals-label">Calorías hoy</span>
+        <div class="cals-values">
+          <div class="cal-item">
+            <div class="cal-num" id="cals-in">—</div>
+            <div class="cal-sub">ingeridas</div>
+          </div>
+          <div class="cal-item">
+            <div class="cal-num" id="cals-out">—</div>
+            <div class="cal-sub">quemadas</div>
+          </div>
+        </div>
+      </div>
+      <div class="cal-bar"><div class="cal-fill" id="cal-bar" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Semana — workout · sueño · journal</div>
+    <div class="card">
+      <div class="weekly-inner">
+        <div class="day-label-row">
+          <div class="day-lbl">L</div><div class="day-lbl">M</div><div class="day-lbl">X</div>
+          <div class="day-lbl">J</div><div class="day-lbl">V</div><div class="day-lbl">S</div>
+          <div class="day-lbl">D</div>
+        </div>
+        <div class="weekly-grid" id="weekly"><div class="state-loading" style="grid-column:1/-1">Cargando...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Goals activos</div>
+    <div class="card" id="goals"><div class="state-loading">Cargando...</div></div>
+  </div>
+</div>
+
+<script>
+const PROXY = window.location.origin;
+const DB = {
+  dailyRoutine: '8a5f99ee-6960-8276-920a-076337e9f6ac',
+  weeklyHabits: '246f99ee-6960-8273-aa80-8725abe27909',
+  tareas:       '34ff99ee-6960-80c8-b8b4-000b191ba7b7',
+  movimientos:  '327f123d-ce76-40de-9833-c300c9f9aaf6',
+  nutricion:    '34ef99ee-6960-800a-8c57-e61ac53a587a',
+  deporte:      '34ef99ee-6960-8034-9c00-d2a969fae248',
+  goals:        'f5ef99ee-6960-8366-94fe-0720477bacf1'
+};
+const DIAS=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+function setFecha(){const d=new Date();document.getElementById('fecha').textContent=`${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]}`;}
+
+async function query(dbId,body={}){
+  try{
+    const r=await fetch(`${PROXY}/api/notion`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dbId,...body})});
+    if(!r.ok)return null;
+    return await r.json();
+  }catch(e){return null;}
+}
+
+async function loadHabitos(){
+  const el=document.getElementById('habitos');
+  const data=await query(DB.dailyRoutine);
+  if(!data?.results){el.innerHTML='<div class="state-error">Error al cargar</div>';return;}
+  const items=data.results.filter(p=>p.properties?.Name?.title?.length);
+  if(!items.length){el.innerHTML='<div class="state-empty">Sin hábitos configurados</div>';return;}
+  const franjas={'Morning 🌤️':'Mañana','Afternoon 🌅':'Mediodía','Evening 🌖':'Noche'};
+  el.innerHTML=items.map(p=>{
+    const name=p.properties.Name.title[0].plain_text;
+    const done=p.properties.Checkbox?.checkbox||false;
+    const tag=franjas[p.properties.Routine?.select?.name]||'';
+    return `<div class="habit-row"><div class="check ${done?'done':''}"></div><span class="habit-name ${done?'done':''}">${name}</span>${tag?`<span class="habit-tag">${tag}</span>`:''}</div>`;
+  }).join('');
+}
+
+async function loadTareas(){
+  const el=document.getElementById('tareas');
+  const data=await query(DB.tareas,{filter:{property:'Completada',checkbox:{equals:false}},sorts:[{property:'Prioridad',direction:'ascending'}]});
+  if(!data?.results){el.innerHTML='<div class="state-error">Error al cargar</div>';return;}
+  if(!data.results.length){el.innerHTML='<div class="state-empty">Sin tareas pendientes ✓</div>';return;}
+  const pm={'🔴 Urgente':['badge-red','🔴'],'🟡 Normal':['badge-amber','🟡'],'🟢 Puede esperar':['badge-green','🟢']};
+  el.innerHTML=data.results.map(p=>{
+    const name=p.properties.Tarea?.title?.[0]?.plain_text||'—';
+    const prio=p.properties.Prioridad?.select?.name||'';
+    const[cls,emoji]=pm[prio]||['badge-green',''];
+    return `<div class="task-row"><div class="task-box"></div><span class="task-name">${name}</span>${prio?`<span class="badge ${cls}">${emoji}</span>`:''}</div>`;
+  }).join('');
+}
+
+async function loadMetricas(){
+  const now=new Date();
+  const primerDia=new Date(now.getFullYear(),now.getMonth(),1).toISOString().split('T')[0];
+  const hoy=now.toISOString().split('T')[0];
+  const movData=await query(DB.movimientos,{filter:{property:'Fecha',date:{on_or_after:primerDia}}});
+  let gastos=0,ingresos=0,countG=0;
+  if(movData?.results){movData.results.forEach(p=>{const t=p.properties.Tipo?.select?.name||'';const c=p.properties.Cantidad?.number||0;if(t==='Gasto'){gastos+=c;countG++;}if(t==='Ingreso')ingresos+=c;});}
+  document.getElementById('gastos-val').textContent=Math.round(gastos);
+  document.getElementById('gastos-sub').textContent=`${countG} movimientos`;
+  const bal=ingresos-gastos;
+  document.getElementById('balance-val').textContent=(bal>=0?'+':'')+Math.round(bal);
+  document.getElementById('balance-sub').textContent=ingresos>0?`de ${Math.round(ingresos)}€`:'sin ingresos';
+  const nutData=await query(DB.nutricion,{filter:{property:'Fecha',date:{equals:hoy}}});
+  let calsIn=0;
+  if(nutData?.results)nutData.results.forEach(p=>{calsIn+=p.properties['Calorías']?.number||p.properties['calorias']?.number||0;});
+  const depData=await query(DB.deporte,{filter:{property:'Fecha',date:{equals:hoy}}});
+  let calsOut=0;
+  if(depData?.results)depData.results.forEach(p=>{calsOut+=p.properties['Calorías quemadas']?.number||0;});
+  document.getElementById('cals-in').textContent=calsIn>0?Math.round(calsIn):'—';
+  document.getElementById('cals-out').textContent=calsOut>0?Math.round(calsOut):'—';
+  const pct=calsIn>0?Math.min(100,Math.round((calsIn/1750)*100)):0;
+  document.getElementById('cal-bar').style.width=pct+'%';
+  if(pct>100)document.getElementById('cal-bar').style.background='var(--red)';
+}
+
+async function loadWeekly(){
+  const el=document.getElementById('weekly');
+  const data=await query(DB.weeklyHabits,{sorts:[{property:'Date',direction:'ascending'}]});
+  if(!data?.results?.length){el.innerHTML='<div class="state-empty">Sin datos</div>';return;}
+  const hoyDia=new Date().getDay();
+  const todayIdx=hoyDia===0?6:hoyDia-1;
+  el.innerHTML=data.results.slice(0,7).map((p,i)=>{
+    const dateStr=p.properties['Date']?.date?.start;
+    const dayNum=dateStr?new Date(dateStr+'T12:00:00').getDate():i+1;
+    const workout=p.properties['Workout']?.checkbox||false;
+    const sleep=p.properties['8 hours sleep']?.checkbox||false;
+    const journal=p.properties['Journal']?.checkbox||false;
+    return `<div class="day-cell"><div class="day-num ${i===todayIdx?'today':''}">${dayNum}</div><div class="pip ${workout?'done':''}"></div><div class="pip ${sleep?'done':''}"></div><div class="pip ${journal?'done':''}"></div></div>`;
+  }).join('');
+}
+
+async function loadGoals(){
+  const el=document.getElementById('goals');
+  const data=await query(DB.goals,{filter:{property:'Achieved?',checkbox:{equals:false}}});
+  if(!data?.results){el.innerHTML='<div class="state-error">Error al cargar</div>';return;}
+  if(!data.results.length){el.innerHTML='<div class="state-empty">Sin goals activos</div>';return;}
+  const colors=['var(--green)','var(--blue)','var(--coral)'];
+  el.innerHTML=data.results.map((p,i)=>{
+    const name=p.properties['Vision Goals']?.title?.[0]?.plain_text||'Goal';
+    const targetDate=p.properties['Target Date']?.date?.start;
+    let diasRestantes='—',progreso=10;
+    if(targetDate){const diff=Math.ceil((new Date(targetDate)-new Date())/86400000);diasRestantes=diff>0?`${diff}d`:'Vencido';progreso=Math.max(5,Math.min(95,Math.round((1-diff/180)*100)));}
+    return `<div class="goal-row"><div class="goal-top"><span class="goal-name">${name}</span><span class="goal-days">${diasRestantes}</span></div><div class="goal-bar"><div class="goal-fill" style="width:${progreso}%;background:${colors[i%colors.length]}"></div></div></div>`;
+  }).join('');
+}
+
+async function loadAll(){setFecha();loadHabitos();loadTareas();loadMetricas();loadWeekly();loadGoals();}
+loadAll();
+</script>
+</body>
+</html>
