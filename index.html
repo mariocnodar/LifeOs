@@ -334,22 +334,28 @@ async function loadMetricas() {
     ]
   });
 
-  let gastosVariables = 0, gastosCount = 0;
+  let ingresos = 0, gastosTotales = 0, gastosVariables = 0, gastosCount = 0;
   if (movData?.results) {
     movData.results.forEach(p => {
       const tipo     = p.properties.Tipo?.select?.name || '';
       const fijo     = p.properties.Fijo?.checkbox || false;
       const cantidad = p.properties.Cantidad?.number || 0;
-      if (tipo === 'Gasto' && !fijo) {
-        gastosVariables += cantidad;
-        gastosCount++;
+      if (tipo === 'Ingreso') {
+        ingresos += cantidad;
+      }
+      if (tipo === 'Gasto') {
+        gastosTotales += cantidad;
+        if (!fijo) {
+          gastosVariables += cantidad;
+          gastosCount++;
+        }
       }
     });
   }
 
-  const disponible = SUELDO - gastosVariables;
+  const disponible = ingresos - gastosTotales;
   document.getElementById('disponible-val').textContent = Math.round(disponible);
-  document.getElementById('disponible-sub').textContent = `de ${SUELDO}€ sueldo`;
+  document.getElementById('disponible-sub').textContent = `de ${Math.round(ingresos)}€ ingresos`;
   document.getElementById('gastos-val').textContent     = Math.round(gastosVariables);
   document.getElementById('gastos-sub').textContent     = `${gastosCount} movimiento${gastosCount !== 1 ? 's' : ''}`;
 
