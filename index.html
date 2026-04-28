@@ -70,6 +70,8 @@
     .cal-item { text-align: right; }
     .cal-num { font-size: 20px; font-weight: 300; letter-spacing: -0.5px; }
     .cal-sub { font-size: 10px; color: var(--text3); }
+    .cal-bar-wrap { margin-top: 6px; }
+    .cal-bar-label { display: flex; justify-content: space-between; font-size: 10px; color: var(--text3); margin-bottom: 4px; }
     .cal-bar { height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
     .cal-fill { height: 100%; border-radius: 2px; background: var(--green); transition: width 0.4s; }
     .weekly-inner { padding: 14px 16px; }
@@ -85,9 +87,10 @@
     .goal-row:last-child { border-bottom: none; }
     .goal-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px; }
     .goal-name { font-size: 13px; color: var(--text); flex: 1; padding-right: 8px; }
-    .goal-days { font-size: 11px; color: var(--text3); white-space: nowrap; }
-    .goal-bar { height: 3px; background: var(--bg3); border-radius: 2px; }
+    .goal-dates { font-size: 10px; color: var(--text3); white-space: nowrap; }
+    .goal-bar { height: 3px; background: var(--bg3); border-radius: 2px; margin-bottom: 4px; }
     .goal-fill { height: 100%; border-radius: 2px; }
+    .goal-pct { font-size: 10px; color: var(--text3); }
     .state-loading { padding: 16px; font-size: 13px; color: var(--text3); }
     .state-empty { padding: 16px; font-size: 13px; color: var(--text3); text-align: center; }
     .state-error { padding: 12px 16px; font-size: 12px; color: var(--red); }
@@ -117,14 +120,14 @@
     <div class="section-label">Finanzas y calorías</div>
     <div class="metrics-grid">
       <div class="metric">
-        <div class="metric-label">Gastos este mes</div>
-        <div><span class="metric-value" id="gastos-val">—</span><span class="metric-unit"> €</span></div>
-        <div class="metric-sub" id="gastos-sub"> </div>
+        <div class="metric-label">Dinero disponible</div>
+        <div><span class="metric-value" id="disponible-val">—</span><span class="metric-unit"> €</span></div>
+        <div class="metric-sub" id="disponible-sub"> </div>
       </div>
       <div class="metric">
-        <div class="metric-label">Balance mes</div>
-        <div><span class="metric-value" id="balance-val">—</span><span class="metric-unit"> €</span></div>
-        <div class="metric-sub" id="balance-sub"> </div>
+        <div class="metric-label">Gastos variables</div>
+        <div><span class="metric-value" id="gastos-val">—</span><span class="metric-unit"> €</span></div>
+        <div class="metric-sub" id="gastos-sub"> </div>
       </div>
     </div>
     <div class="cals-card">
@@ -136,12 +139,18 @@
             <div class="cal-sub">ingeridas</div>
           </div>
           <div class="cal-item">
-            <div class="cal-num" id="cals-out">—</div>
-            <div class="cal-sub">quemadas</div>
+            <div class="cal-num" id="cals-objetivo">—</div>
+            <div class="cal-sub">objetivo</div>
           </div>
         </div>
       </div>
-      <div class="cal-bar"><div class="cal-fill" id="cal-bar" style="width:0%"></div></div>
+      <div class="cal-bar-wrap">
+        <div class="cal-bar-label">
+          <span>0</span>
+          <span id="cal-bar-objetivo-label">1750</span>
+        </div>
+        <div class="cal-bar"><div class="cal-fill" id="cal-bar" style="width:0%"></div></div>
+      </div>
     </div>
   </div>
 
@@ -166,36 +175,65 @@
 </div>
 
 <script>
-const PROXY = 'https://nutrition-tracker-proxy.vercel.app/api/notion';
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const PROXY = '/api/notion';  // mismo dominio, no necesita URL absoluta
+const SUELDO = 1600;
+
 const DB = {
   dailyRoutine: '288f99ee-6960-8291-87bc-018e7bc45478',
   weeklyHabits: 'a79f99ee-6960-83dc-bbef-8126e748db3b',
   tareas:       '34ff99ee-6960-8042-b1f3-ed74fcb93597',
   movimientos:  '78b3ed9a-16db-4a6f-bbf5-1b1fb0dd3d8e',
-  nutricion:    '34ef99ee-6960-8094-8965-000b516cd488',
+  nutricion:    '34ef99ee-6960-800a-8c57-e61ac53a587a',
   deporte:      '34ef99ee-6960-8034-9c00-d2a969fae248',
   goals:        '102f99ee-6960-82ce-b4b9-016e0c04f057'
 };
+
 const DIAS  = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
+// ─── UTILS ────────────────────────────────────────────────────────────────────
 function setFecha() {
   const d = new Date();
   document.getElementById('fecha').textContent = `${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]}`;
 }
 
-async function query(dbId, body = {}) {
+function getPeriodo25() {
+  const hoy = new Date();
+  const dia = hoy.getDate();
+  let inicio, fin;
+  if (dia >= 25) {
+    inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 25);
+    fin    = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 24);
+  } else {
+    inicio = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 25);
+    fin    = new Date(hoy.getFullYear(), hoy.getMonth(), 24);
+  }
+  return {
+    inicio: inicio.toISOString().split('T')[0],
+    fin:    fin.toISOString().split('T')[0]
+  };
+}
+
+async function query(dbId, filter, sorts) {
   try {
+    const body = {};
+    if (filter) body.filter = filter;
+    if (sorts)  body.sorts  = sorts;
     const r = await fetch(PROXY, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ db: dbId, ...body })
+      body: JSON.stringify({
+        endpoint: `databases/${dbId}/query`,
+        body
+      })
     });
     if (!r.ok) return null;
     return await r.json();
   } catch(e) { return null; }
 }
 
+// ─── HÁBITOS ──────────────────────────────────────────────────────────────────
 async function loadHabitos() {
   const el = document.getElementById('habitos');
   const data = await query(DB.dailyRoutine);
@@ -211,12 +249,14 @@ async function loadHabitos() {
   }).join('');
 }
 
+// ─── TAREAS ───────────────────────────────────────────────────────────────────
 async function loadTareas() {
   const el = document.getElementById('tareas');
-  const data = await query(DB.tareas, {
-    filter: { property: 'Completada', checkbox: { equals: false } },
-    sorts:  [{ property: 'Prioridad', direction: 'ascending' }]
-  });
+  const data = await query(
+    DB.tareas,
+    { property: 'Completada', checkbox: { equals: false } },
+    [{ property: 'Prioridad', direction: 'ascending' }]
+  );
   if (!data?.results) { el.innerHTML = '<div class="state-error">Error al cargar</div>'; return; }
   if (!data.results.length) { el.innerHTML = '<div class="state-empty">Sin tareas pendientes ✓</div>'; return; }
   const pm = { '🔴 Urgente': ['badge-red','🔴'], '🟡 Normal': ['badge-amber','🟡'], '🟢 Puede esperar': ['badge-green','🟢'] };
@@ -228,56 +268,74 @@ async function loadTareas() {
   }).join('');
 }
 
+// ─── FINANZAS + CALORÍAS ──────────────────────────────────────────────────────
 async function loadMetricas() {
-  const now = new Date();
-  const primerDia = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-  const hoy = now.toISOString().split('T')[0];
+  const hoy = new Date().toISOString().split('T')[0];
+  const { inicio, fin } = getPeriodo25();
 
   const movData = await query(DB.movimientos, {
-    filter: { property: 'Fecha', date: { on_or_after: primerDia } }
+    and: [
+      { property: 'Fecha', date: { on_or_after: inicio } },
+      { property: 'Fecha', date: { on_or_before: fin } }
+    ]
   });
-  let gastos = 0, ingresos = 0, countG = 0;
+
+  let gastosVariables = 0, gastosCount = 0;
   if (movData?.results) {
     movData.results.forEach(p => {
-      const t = p.properties.Tipo?.select?.name || '';
-      const c = p.properties.Cantidad?.number || 0;
-      if (t === 'Gasto') { gastos += c; countG++; }
-      if (t === 'Ingreso') ingresos += c;
+      const tipo     = p.properties.Tipo?.select?.name || '';
+      const fijo     = p.properties.Fijo?.checkbox || false;
+      const cantidad = p.properties.Cantidad?.number || 0;
+      if (tipo === 'Gasto' && !fijo) {
+        gastosVariables += cantidad;
+        gastosCount++;
+      }
     });
   }
-  document.getElementById('gastos-val').textContent = Math.round(gastos);
-  document.getElementById('gastos-sub').textContent = `${countG} movimientos`;
-  const bal = ingresos - gastos;
-  document.getElementById('balance-val').textContent = (bal >= 0 ? '+' : '') + Math.round(bal);
-  document.getElementById('balance-sub').textContent = ingresos > 0 ? `de ${Math.round(ingresos)}€` : 'sin ingresos';
+
+  const disponible = SUELDO - gastosVariables;
+  document.getElementById('disponible-val').textContent = Math.round(disponible);
+  document.getElementById('disponible-sub').textContent = `de ${SUELDO}€ sueldo`;
+  document.getElementById('gastos-val').textContent     = Math.round(gastosVariables);
+  document.getElementById('gastos-sub').textContent     = `${gastosCount} movimiento${gastosCount !== 1 ? 's' : ''}`;
 
   const nutData = await query(DB.nutricion, {
-    filter: { property: 'Fecha', date: { equals: hoy } }
+    property: 'Fecha', date: { equals: hoy }
   });
   let calsIn = 0;
-  if (nutData?.results) nutData.results.forEach(p => {
-calsIn += p.properties['Calorías ']?.number || p.properties['Calorías']?.number || 0;  });
+  if (nutData?.results) {
+    nutData.results.forEach(p => {
+      calsIn += p.properties['Calorías']?.number || 0;
+    });
+  }
 
   const depData = await query(DB.deporte, {
-    filter: { property: 'Fecha', date: { equals: hoy } }
+    property: 'Fecha', date: { equals: hoy }
   });
   let calsOut = 0;
-  if (depData?.results) depData.results.forEach(p => {
-    calsOut += p.properties['Calorías quemadas']?.number || 0;
-  });
+  if (depData?.results) {
+    depData.results.forEach(p => {
+      calsOut += p.properties['Calorías quemadas']?.number || 0;
+    });
+  }
 
-  document.getElementById('cals-in').textContent  = calsIn  > 0 ? Math.round(calsIn)  : '—';
-  document.getElementById('cals-out').textContent = calsOut > 0 ? Math.round(calsOut) : '—';
-  const pct = calsIn > 0 ? Math.min(100, Math.round((calsIn / 1750) * 100)) : 0;
-  document.getElementById('cal-bar').style.width = pct + '%';
-  if (pct > 100) document.getElementById('cal-bar').style.background = 'var(--red)';
+  const objetivo = 1750 + calsOut;
+  document.getElementById('cals-in').textContent         = calsIn > 0 ? Math.round(calsIn) : '—';
+  document.getElementById('cals-objetivo').textContent   = Math.round(objetivo);
+  document.getElementById('cal-bar-objetivo-label').textContent = Math.round(objetivo);
+
+  const pct = calsIn > 0 ? Math.min(110, Math.round((calsIn / objetivo) * 100)) : 0;
+  const bar = document.getElementById('cal-bar');
+  bar.style.width      = pct + '%';
+  bar.style.background = pct > 100 ? 'var(--red)' : 'var(--green)';
 }
 
+// ─── WEEKLY ───────────────────────────────────────────────────────────────────
 async function loadWeekly() {
   const el = document.getElementById('weekly');
-  const data = await query(DB.weeklyHabits, { sorts: [{ property: 'Date', direction: 'ascending' }] });
+  const data = await query(DB.weeklyHabits, null, [{ property: 'Date', direction: 'ascending' }]);
   if (!data?.results?.length) { el.innerHTML = '<div class="state-empty">Sin datos</div>'; return; }
-  const hoyDia = new Date().getDay();
+  const hoyDia   = new Date().getDay();
   const todayIdx = hoyDia === 0 ? 6 : hoyDia - 1;
   el.innerHTML = data.results.slice(0,7).map((p, i) => {
     const dateStr = p.properties['Date']?.date?.start;
@@ -289,27 +347,55 @@ async function loadWeekly() {
   }).join('');
 }
 
+// ─── GOALS ────────────────────────────────────────────────────────────────────
 async function loadGoals() {
   const el = document.getElementById('goals');
   const data = await query(DB.goals, {
-    filter: { property: 'Achieved?', checkbox: { equals: false } }
+    property: 'Achieved?', checkbox: { equals: false }
   });
   if (!data?.results) { el.innerHTML = '<div class="state-error">Error al cargar</div>'; return; }
   if (!data.results.length) { el.innerHTML = '<div class="state-empty">Sin goals activos</div>'; return; }
+
   const colors = ['var(--green)', 'var(--blue)', 'var(--coral)'];
+  const hoy    = new Date();
+
   el.innerHTML = data.results.map((p, i) => {
-    const name = p.properties['Vision Goals']?.title?.[0]?.plain_text || 'Goal';
+    const name       = p.properties['Vision Goals']?.title?.[0]?.plain_text || 'Goal';
     const targetDate = p.properties['Target Date']?.date?.start;
-    let diasRestantes = '—', progreso = 10;
-    if (targetDate) {
-      const diff = Math.ceil((new Date(targetDate) - new Date()) / 86400000);
-      diasRestantes = diff > 0 ? `${diff}d` : 'Vencido';
-      progreso = Math.max(5, Math.min(95, Math.round((1 - diff / 180) * 100)));
+    const createdAt  = p.created_time;
+
+    let progreso = 2, diasRestantes = '—', fechaInicioStr = '—', fechaFinStr = '—';
+
+    if (targetDate && createdAt) {
+      const inicio      = new Date(createdAt);
+      const fin         = new Date(targetDate);
+      const totalDias   = Math.max(1, Math.round((fin - inicio) / 86400000));
+      const diasPasados = Math.max(0, Math.round((hoy - inicio) / 86400000));
+      const diff        = Math.ceil((fin - hoy) / 86400000);
+
+      diasRestantes  = diff > 0 ? `${diff}d restantes` : 'Vencido';
+      progreso       = Math.max(2, Math.min(98, Math.round((diasPasados / totalDias) * 100)));
+
+      const fmt = d => `${d.getDate()} ${MESES[d.getMonth()].slice(0,3)}`;
+      fechaInicioStr = fmt(inicio);
+      fechaFinStr    = fmt(fin);
     }
-    return `<div class="goal-row"><div class="goal-top"><span class="goal-name">${name}</span><span class="goal-days">${diasRestantes}</span></div><div class="goal-bar"><div class="goal-fill" style="width:${progreso}%;background:${colors[i%colors.length]}"></div></div></div>`;
+
+    return `
+      <div class="goal-row">
+        <div class="goal-top">
+          <span class="goal-name">${name}</span>
+          <span class="goal-dates">${diasRestantes}</span>
+        </div>
+        <div class="goal-bar">
+          <div class="goal-fill" style="width:${progreso}%;background:${colors[i%colors.length]}"></div>
+        </div>
+        <div class="goal-pct">${fechaInicioStr} → ${fechaFinStr} · ${progreso}%</div>
+      </div>`;
   }).join('');
 }
 
+// ─── INIT ─────────────────────────────────────────────────────────────────────
 async function loadAll() {
   setFecha();
   loadHabitos();
