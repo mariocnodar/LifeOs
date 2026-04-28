@@ -159,7 +159,10 @@
   </div>
 
   <div class="section">
-    <div class="section-label">Semana — hábitos diarios</div>
+    <div class="section-label" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>Semana — hábitos diarios</span>
+      <button onclick="crearSemana()" id="crear-semana-btn" style="font-size:10px;color:var(--text3);background:var(--bg2);border:0.5px solid var(--border);border-radius:8px;padding:3px 10px;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Crear semana</button>
+    </div>
     <div class="card">
       <div class="weekly-inner">
         <div class="day-label-row">
@@ -500,6 +503,83 @@ async function loadGoals() {
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
+const WEEKLY_DIAS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+
+function getLunesSemana() {
+  const hoy = new Date();
+  const dia = hoy.getDay();
+  const diffLunes = dia === 0 ? -6 : 1 - dia;
+  const lunes = new Date(hoy);
+  lunes.setDate(hoy.getDate() + diffLunes);
+  return lunes;
+}
+
+async function crearSemana() {
+  const btn = document.getElementById('crear-semana-btn');
+  btn.textContent = 'Creando...';
+  btn.disabled = true;
+
+  const lunes = getLunesSemana();
+  const pad = n => String(n).padStart(2, '0');
+
+  // Comprobar si ya existen filas para esta semana
+  const lunesStr = `${lunes.getFullYear()}-${pad(lunes.getMonth()+1)}-${pad(lunes.getDate())}`;
+  const domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
+  const domingoStr = `${domingo.getFullYear()}-${pad(domingo.getMonth()+1)}-${pad(domingo.getDate())}`;
+
+  const existing = await query(DB.weeklyHabits, {
+    and: [
+      { property: 'Date', date: { on_or_after: lunesStr } },
+      { property: 'Date', date: { on_or_before: domingoStr } }
+    ]
+  });
+
+  if (existing?.results?.length >= 7) {
+    btn.textContent = 'Ya existe';
+    setTimeout(() => { btn.textContent = '+ Crear semana'; btn.disabled = false; }, 2000);
+    return;
+  }
+
+  // Crear las filas que faltan
+  const existingDates = new Set((existing?.results || []).map(p => p.properties['Date']?.date?.start));
+  let creados = 0;
+
+  for (let i = 0; i < 7; i++) {
+    const fecha = new Date(lunes);
+    fecha.setDate(lunes.getDate() + i);
+    const fechaStr = `${fecha.getFullYear()}-${pad(fecha.getMonth()+1)}-${pad(fecha.getDate())}`;
+
+    if (existingDates.has(fechaStr)) continue;
+
+    await fetch(PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        endpoint: 'pages',
+        body: {
+          parent: { database_id: DB.weeklyHabits },
+          properties: {
+            'Weekday ': { title: [{ text: { content: WEEKLY_DIAS[i] } }] },
+            'Date': { date: { start: fechaStr } },
+            'Meditar': { checkbox: false },
+            'Leer': { checkbox: false },
+            'Deporte': { checkbox: false },
+            'Registrar comida': { checkbox: false },
+            'Mirar inversiones': { checkbox: false },
+            'Dejar el teléfono': { checkbox: false },
+            '1 hora sin teléfono': { checkbox: false }
+          }
+        }
+      })
+    });
+    creados++;
+  }
+
+  btn.textContent = creados > 0 ? `✓ ${creados} días creados` : 'Ya existe';
+  setTimeout(() => { btn.textContent = '+ Crear semana'; btn.disabled = false; }, 2000);
+  loadWeekly();
+}
+
 async function loadAll() {
   setFecha();
   loadHabitos();
