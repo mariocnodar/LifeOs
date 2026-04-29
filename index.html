@@ -8,9 +8,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Life OS" />
   <meta name="theme-color" content="#f5f5f7" />
-<title>Life OS</title>
+  <title>Life OS</title>
   <link rel="apple-touch-icon" href="/icon.png"/>
-  <link rel="icon" type="image/png" href="/icon.png"/>  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="icon" type="image/png" href="/icon.png"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
   <style>
     :root {
@@ -99,7 +100,10 @@
     .state-loading { padding: 16px; font-size: 13px; color: var(--text3); }
     .state-empty { padding: 16px; font-size: 13px; color: var(--text3); text-align: center; }
     .state-error { padding: 12px 16px; font-size: 12px; color: var(--red); }
-    .fab { position: fixed; bottom: calc(22px + env(safe-area-inset-bottom)); right: 22px; width: 48px; height: 48px; border-radius: 50%; background: #1a1a1a; border: none; color: #fff; font-size: 19px; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; font-family: 'DM Sans', sans-serif; }
+    .fab { position: fixed; bottom: calc(22px + env(safe-area-inset-bottom)); right: 22px; width: 48px; height: 48px; border-radius: 50%; background: #1a1a1a; border: none; color: #fff; font-size: 19px; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; font-family: 'DM Sans', sans-serif; transition: opacity 0.2s; }
+    .fab.loading { opacity: 0.6; pointer-events: none; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .fab.loading svg { animation: spin 1s linear infinite; }
   </style>
 </head>
 <body>
@@ -182,7 +186,7 @@
   </div>
 </div>
 
-<button class="fab" id="fab" onclick="loadAll()">
+<button class="fab" id="fab" onclick="reloadAll()">
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
     <polyline points="23 4 23 10 17 10"></polyline>
     <polyline points="1 20 1 14 7 14"></polyline>
@@ -191,8 +195,7 @@
 </button>
 
 <script>
-// ─── CONFIG ───────────────────────────────────────────────────────────────────
-const PROXY = '/api/notion';  // mismo dominio, no necesita URL absoluta
+const PROXY = '/api/notion';
 const SUELDO = 1600;
 const CAT_AHORRO = 'Ahorro / Inversión ';
 
@@ -209,7 +212,6 @@ const DB = {
 const DIAS  = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
-// ─── UTILS ────────────────────────────────────────────────────────────────────
 function setFecha() {
   const d = new Date();
   document.getElementById('fecha').textContent = `${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]}`;
@@ -219,7 +221,6 @@ function getPeriodo25() {
   const hoy = new Date();
   const dia = hoy.getDate();
   const pad = n => String(n).padStart(2, '0');
-
   let iY, iM, iD, fY, fM, fD;
   if (dia >= 25) {
     iY = hoy.getFullYear(); iM = hoy.getMonth() + 1; iD = 25;
@@ -244,10 +245,7 @@ async function query(dbId, filter, sorts) {
     const r = await fetch(PROXY, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        endpoint: `databases/${dbId}/query`,
-        body
-      })
+      body: JSON.stringify({ endpoint: `databases/${dbId}/query`, body })
     });
     if (!r.ok) return null;
     return await r.json();
@@ -257,9 +255,7 @@ async function query(dbId, filter, sorts) {
 // ─── HÁBITOS ──────────────────────────────────────────────────────────────────
 async function getWeeklyHoyId() {
   const hoy = new Date().toISOString().split('T')[0];
-  const data = await query(DB.weeklyHabits, {
-    property: 'Date', date: { equals: hoy }
-  });
+  const data = await query(DB.weeklyHabits, { property: 'Date', date: { equals: hoy } });
   if (data?.results?.length) return data.results[0].id;
   return null;
 }
@@ -270,32 +266,21 @@ async function toggleHabito(pageId, habitName, checkEl, done) {
   const nameEl = checkEl.nextElementSibling;
   nameEl.classList.toggle('done', nuevoEstado);
   checkEl.dataset.done = nuevoEstado;
-
   try {
-    // Actualiza Daily Routine
     await fetch(PROXY, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        pageId,
-        properties: { Checkbox: { checkbox: nuevoEstado } }
-      })
+      body: JSON.stringify({ pageId, properties: { Checkbox: { checkbox: nuevoEstado } } })
     });
-
-    // Actualiza Weekly Habits si el hábito tiene columna equivalente
     const weeklyId = await getWeeklyHoyId();
     if (weeklyId) {
       await fetch(PROXY, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pageId: weeklyId,
-          properties: { [habitName]: { checkbox: nuevoEstado } }
-        })
+        body: JSON.stringify({ pageId: weeklyId, properties: { [habitName]: { checkbox: nuevoEstado } } })
       });
     }
   } catch(e) {
-    // Revertir si falla
     checkEl.classList.toggle('done', done);
     nameEl.classList.toggle('done', done);
     checkEl.dataset.done = done;
@@ -313,7 +298,7 @@ async function loadHabitos() {
     const name = p.properties.Name.title[0].plain_text;
     const done = p.properties.Checkbox?.checkbox || false;
     const tag  = franjas[p.properties.Routine?.select?.name] || '';
-    return `<div class="habit-row"><div class="check ${done?'done':''}" data-done="${done}" onclick="toggleHabito('${p.id}', '${name.replace(/'/g, "\'")}', this, this.dataset.done === 'true')"></div><span class="habit-name ${done?'done':''}">${name}</span>${tag?`<span class="habit-tag">${tag}</span>`:''}</div>`;
+    return `<div class="habit-row"><div class="check ${done?'done':''}" data-done="${done}" onclick="toggleHabito('${p.id}', '${name.replace(/'/g, "\\'")}', this, this.dataset.done === 'true')"></div><span class="habit-name ${done?'done':''}">${name}</span>${tag?`<span class="habit-tag">${tag}</span>`:''}</div>`;
   }).join('');
 }
 
@@ -325,39 +310,26 @@ async function completarTarea(pageId, rowEl) {
     const r = await fetch(PROXY, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        pageId,
-        properties: { Completada: { checkbox: true } }
-      })
+      body: JSON.stringify({ pageId, properties: { Completada: { checkbox: true } } })
     });
     if (r.ok) {
       rowEl.classList.add('done-anim');
       setTimeout(() => rowEl.remove(), 300);
       const el = document.getElementById('tareas');
-      if (!el.querySelector('.task-row')) {
-        el.innerHTML = '<div class="state-empty">Sin tareas pendientes ✓</div>';
-      }
-    } else {
-      box.classList.remove('completing');
-    }
-  } catch(e) {
-    box.classList.remove('completing');
-  }
+      if (!el.querySelector('.task-row')) el.innerHTML = '<div class="state-empty">Sin tareas pendientes ✓</div>';
+    } else { box.classList.remove('completing'); }
+  } catch(e) { box.classList.remove('completing'); }
 }
 
 async function loadTareas() {
   const el = document.getElementById('tareas');
-  const data = await query(
-    DB.tareas,
-    { property: 'Completada', checkbox: { equals: false } },
-    [{ property: 'Prioridad', direction: 'ascending' }]
-  );
+  const data = await query(DB.tareas, { property: 'Completada', checkbox: { equals: false } }, [{ property: 'Prioridad', direction: 'ascending' }]);
   if (!data?.results) { el.innerHTML = '<div class="state-error">Error al cargar</div>'; return; }
   if (!data.results.length) { el.innerHTML = '<div class="state-empty">Sin tareas pendientes ✓</div>'; return; }
   const pm = { '🔴 Urgente': ['badge-red','🔴'], '🟡 Normal': ['badge-amber','🟡'], '🟢 Puede esperar': ['badge-green','🟢'] };
   el.innerHTML = data.results.map(p => {
-    const name   = p.properties.Tarea?.title?.[0]?.plain_text || '—';
-    const prio   = p.properties.Prioridad?.select?.name || '';
+    const name = p.properties.Tarea?.title?.[0]?.plain_text || '—';
+    const prio = p.properties.Prioridad?.select?.name || '';
     const [cls, emoji] = pm[prio] || ['badge-green',''];
     return `<div class="task-row" data-id="${p.id}"><div class="task-box" onclick="completarTarea('${p.id}', this.closest('.task-row'))"></div><span class="task-name">${name}</span>${prio?`<span class="badge ${cls}">${emoji}</span>`:''}</div>`;
   }).join('');
@@ -383,18 +355,12 @@ async function loadMetricas() {
       const fijo     = props.Fijo?.checkbox === true;
       const cantidad = props.Cantidad?.number || 0;
       const cat      = props['Categoría']?.select?.name || '';
-      if (tipo === 'Ingreso') {
-        ingresos += cantidad;
-      }
+      if (tipo === 'Ingreso') { ingresos += cantidad; }
       if (tipo === 'Gasto') {
-        if (cat === CAT_AHORRO) {
-          ahorro += cantidad;
-        } else {
+        if (cat === CAT_AHORRO) { ahorro += cantidad; }
+        else {
           gastosTotales += cantidad;
-          if (!fijo) {
-            gastosVariables += cantidad;
-            gastosCount++;
-          }
+          if (!fijo) { gastosVariables += cantidad; gastosCount++; }
         }
       }
     });
@@ -406,19 +372,16 @@ async function loadMetricas() {
   document.getElementById('gastos-val').textContent     = Math.round(gastosVariables);
   document.getElementById('gastos-sub').textContent     = `${gastosCount} movimiento${gastosCount !== 1 ? 's' : ''}`;
 
-  const nutData = await query(DB.nutricion, {
-    property: 'Fecha', date: { equals: hoy }
-  });
+  // ── CALORÍAS — campo sin tilde: "Calorias" ──
+  const nutData = await query(DB.nutricion, { property: 'Fecha', date: { equals: hoy } });
   let calsIn = 0;
   if (nutData?.results) {
     nutData.results.forEach(p => {
-      calsIn += p.properties['Calorías']?.number || 0;
+      calsIn += p.properties['Calorias']?.number || 0;
     });
   }
 
-  const depData = await query(DB.deporte, {
-    property: 'Fecha', date: { equals: hoy }
-  });
+  const depData = await query(DB.deporte, { property: 'Fecha', date: { equals: hoy } });
   let calsOut = 0;
   if (depData?.results) {
     depData.results.forEach(p => {
@@ -427,10 +390,9 @@ async function loadMetricas() {
   }
 
   const objetivo = 1750 + calsOut;
-  document.getElementById('cals-in').textContent         = calsIn > 0 ? Math.round(calsIn) : '—';
-  document.getElementById('cals-objetivo').textContent   = Math.round(objetivo);
+  document.getElementById('cals-in').textContent               = calsIn > 0 ? Math.round(calsIn) : '—';
+  document.getElementById('cals-objetivo').textContent         = Math.round(objetivo);
   document.getElementById('cal-bar-objetivo-label').textContent = Math.round(objetivo);
-
   const pct = calsIn > 0 ? Math.min(110, Math.round((calsIn / objetivo) * 100)) : 0;
   const bar = document.getElementById('cal-bar');
   bar.style.width      = pct + '%';
@@ -447,12 +409,12 @@ async function loadWeekly() {
   const hoyDia   = new Date().getDay();
   const todayIdx = hoyDia === 0 ? 6 : hoyDia - 1;
   el.innerHTML = data.results.slice(0,7).map((p, i) => {
-    const dateStr  = p.properties['Date']?.date?.start;
-    const dayNum   = dateStr ? new Date(dateStr + 'T12:00:00').getDate() : i + 1;
+    const dateStr     = p.properties['Date']?.date?.start;
+    const dayNum      = dateStr ? new Date(dateStr + 'T12:00:00').getDate() : i + 1;
     const completados = WEEKLY_HABITS.filter(h => p.properties[h]?.checkbox).length;
-    const total    = WEEKLY_HABITS.length;
-    const pct      = Math.round((completados / total) * 100);
-    const color    = pct === 100 ? 'var(--green)' : pct >= 50 ? 'var(--blue)' : 'var(--amber)';
+    const total       = WEEKLY_HABITS.length;
+    const pct         = Math.round((completados / total) * 100);
+    const color       = pct === 100 ? 'var(--green)' : pct >= 50 ? 'var(--blue)' : 'var(--amber)';
     return `<div class="day-cell">
       <div class="day-num ${i===todayIdx?'today':''}">${dayNum}</div>
       <div class="day-bar-track"><div class="day-bar-fill" style="width:${pct}%;background:${color}"></div></div>
@@ -464,25 +426,20 @@ async function loadWeekly() {
 // ─── GOALS ────────────────────────────────────────────────────────────────────
 async function loadGoals() {
   const el = document.getElementById('goals');
-  const data = await query(DB.goals, {
-    property: 'Achieved?', checkbox: { equals: false }
-  });
+  const data = await query(DB.goals, { property: 'Achieved?', checkbox: { equals: false } });
   if (!data?.results) { el.innerHTML = '<div class="state-error">Error al cargar</div>'; return; }
   if (!data.results.length) { el.innerHTML = '<div class="state-empty">Sin goals activos</div>'; return; }
 
-  // Cargar todos los movimientos históricos para calcular ahorro acumulado
   const todosMovData = await query(DB.movimientos);
-  const movimientos = todosMovData?.results || [];
-
-  const colors = ['var(--green)', 'var(--blue)', 'var(--coral)'];
-  const hoy    = new Date();
+  const movimientos  = todosMovData?.results || [];
+  const colors       = ['var(--green)', 'var(--blue)', 'var(--coral)'];
+  const hoy          = new Date();
 
   el.innerHTML = await Promise.all(data.results.map(async (p, i) => {
     const name        = p.properties['Vision Goals']?.title?.[0]?.plain_text || 'Goal';
     const targetDate  = p.properties['Target Date']?.date?.start;
     const createdAt   = p.created_time;
     const objetivoEur = p.properties['Objetivo €']?.number || null;
-
     let progreso = 2, diasRestantes = '—', fechaInicioStr = '—', fechaFinStr = '—';
     let euroHTML = '';
 
@@ -492,47 +449,52 @@ async function loadGoals() {
       const totalDias   = Math.max(1, Math.round((fin - inicio) / 86400000));
       const diasPasados = Math.max(0, Math.round((hoy - inicio) / 86400000));
       const diff        = Math.ceil((fin - hoy) / 86400000);
+      diasRestantes     = diff > 0 ? `${diff}d restantes` : 'Vencido';
+      progreso          = Math.max(2, Math.min(98, Math.round((diasPasados / totalDias) * 100)));
+      const fmt         = d => `${d.getDate()} ${MESES[d.getMonth()].slice(0,3)}`;
+      fechaInicioStr    = fmt(inicio);
+      fechaFinStr       = fmt(fin);
 
-      diasRestantes = diff > 0 ? `${diff}d restantes` : 'Vencido';
-      progreso      = Math.max(2, Math.min(98, Math.round((diasPasados / totalDias) * 100)));
-
-      const fmt = d => `${d.getDate()} ${MESES[d.getMonth()].slice(0,3)}`;
-      fechaInicioStr = fmt(inicio);
-      fechaFinStr    = fmt(fin);
-
-      // Si tiene objetivo en euros, calcular progreso económico
       if (objetivoEur) {
         const inicioStr = inicio.toISOString().split('T')[0];
         const ahorroAcumulado = movimientos
           .filter(m => {
-            const cat = m.properties['Categoría']?.select?.name || '';
+            const cat   = m.properties['Categoría']?.select?.name || '';
             const fecha = m.properties['Fecha']?.date?.start || '';
             return cat === CAT_AHORRO && fecha >= inicioStr;
           })
           .reduce((s, m) => s + (m.properties['Cantidad']?.number || 0), 0);
-
         const pctEur = Math.min(100, Math.round((ahorroAcumulado / objetivoEur) * 100));
-        euroHTML = `<div class="goal-pct" style="margin-top:3px;color:var(--green)">
-          ${Math.round(ahorroAcumulado).toLocaleString('es-ES')}€ / ${objetivoEur.toLocaleString('es-ES')}€ · ${pctEur}%
-        </div>`;
-        // Sobreescribir progreso de barra con el económico
+        euroHTML = `<div class="goal-pct" style="margin-top:3px;color:var(--green)">${Math.round(ahorroAcumulado).toLocaleString('es-ES')}€ / ${objetivoEur.toLocaleString('es-ES')}€ · ${pctEur}%</div>`;
         progreso = Math.max(2, Math.min(98, pctEur));
       }
     }
 
-    return `
-      <div class="goal-row">
-        <div class="goal-top">
-          <span class="goal-name">${name}</span>
-          <span class="goal-dates">${diasRestantes}</span>
-        </div>
-        <div class="goal-bar">
-          <div class="goal-fill" style="width:${progreso}%;background:${colors[i%colors.length]}"></div>
-        </div>
-        <div class="goal-pct">${fechaInicioStr} → ${fechaFinStr} · ${progreso}%</div>
-        ${euroHTML}
-      </div>`;
+    return `<div class="goal-row">
+      <div class="goal-top"><span class="goal-name">${name}</span><span class="goal-dates">${diasRestantes}</span></div>
+      <div class="goal-bar"><div class="goal-fill" style="width:${progreso}%;background:${colors[i%colors.length]}"></div></div>
+      <div class="goal-pct">${fechaInicioStr} → ${fechaFinStr} · ${progreso}%</div>
+      ${euroHTML}
+    </div>`;
   })).then(rows => rows.join(''));
+}
+
+// ─── RELOAD CON FEEDBACK VISUAL ───────────────────────────────────────────────
+async function reloadAll() {
+  const fab = document.getElementById('fab');
+  fab.classList.add('loading');
+
+  // Reset visual de secciones
+  document.getElementById('habitos').innerHTML = '<div class="state-loading">Cargando...</div>';
+  document.getElementById('tareas').innerHTML  = '<div class="state-loading">Cargando...</div>';
+  document.getElementById('weekly').innerHTML  = '<div class="state-loading" style="grid-column:1/-1">Cargando...</div>';
+  document.getElementById('goals').innerHTML   = '<div class="state-loading">Cargando...</div>';
+  document.getElementById('disponible-val').textContent = '—';
+  document.getElementById('gastos-val').textContent     = '—';
+  document.getElementById('cals-in').textContent        = '—';
+
+  await loadAll();
+  fab.classList.remove('loading');
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
@@ -551,39 +513,24 @@ async function crearSemana() {
   const btn = document.getElementById('crear-semana-btn');
   btn.textContent = 'Creando...';
   btn.disabled = true;
-
   const lunes = getLunesSemana();
   const pad = n => String(n).padStart(2, '0');
-
-  // Comprobar si ya existen filas para esta semana
-  const lunesStr = `${lunes.getFullYear()}-${pad(lunes.getMonth()+1)}-${pad(lunes.getDate())}`;
-  const domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
+  const lunesStr   = `${lunes.getFullYear()}-${pad(lunes.getMonth()+1)}-${pad(lunes.getDate())}`;
+  const domingo    = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
   const domingoStr = `${domingo.getFullYear()}-${pad(domingo.getMonth()+1)}-${pad(domingo.getDate())}`;
-
-  const existing = await query(DB.weeklyHabits, {
-    and: [
-      { property: 'Date', date: { on_or_after: lunesStr } },
-      { property: 'Date', date: { on_or_before: domingoStr } }
-    ]
-  });
-
+  const existing   = await query(DB.weeklyHabits, { and: [{ property: 'Date', date: { on_or_after: lunesStr } }, { property: 'Date', date: { on_or_before: domingoStr } }] });
   if (existing?.results?.length >= 7) {
     btn.textContent = 'Ya existe';
     setTimeout(() => { btn.textContent = '+ Crear semana'; btn.disabled = false; }, 2000);
     return;
   }
-
-  // Crear las filas que faltan
   const existingDates = new Set((existing?.results || []).map(p => p.properties['Date']?.date?.start));
   let creados = 0;
-
   for (let i = 0; i < 7; i++) {
-    const fecha = new Date(lunes);
+    const fecha    = new Date(lunes);
     fecha.setDate(lunes.getDate() + i);
     const fechaStr = `${fecha.getFullYear()}-${pad(fecha.getMonth()+1)}-${pad(fecha.getDate())}`;
-
     if (existingDates.has(fechaStr)) continue;
-
     await fetch(PROXY, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -594,12 +541,9 @@ async function crearSemana() {
           properties: {
             'Weekday ': { title: [{ text: { content: WEEKLY_DIAS[i] } }] },
             'Date': { date: { start: fechaStr } },
-            'Meditar': { checkbox: false },
-            'Leer': { checkbox: false },
-            'Deporte': { checkbox: false },
-            'Registrar comida': { checkbox: false },
-            'Mirar inversiones': { checkbox: false },
-            'Dejar el teléfono': { checkbox: false },
+            'Meditar': { checkbox: false }, 'Leer': { checkbox: false },
+            'Deporte': { checkbox: false }, 'Registrar comida': { checkbox: false },
+            'Mirar inversiones': { checkbox: false }, 'Dejar el teléfono': { checkbox: false },
             '1 hora sin teléfono': { checkbox: false }
           }
         }
@@ -607,7 +551,6 @@ async function crearSemana() {
     });
     creados++;
   }
-
   btn.textContent = creados > 0 ? `✓ ${creados} días creados` : 'Ya existe';
   setTimeout(() => { btn.textContent = '+ Crear semana'; btn.disabled = false; }, 2000);
   loadWeekly();
@@ -615,11 +558,7 @@ async function crearSemana() {
 
 async function loadAll() {
   setFecha();
-  loadHabitos();
-  loadTareas();
-  loadMetricas();
-  loadWeekly();
-  loadGoals();
+  await Promise.all([loadHabitos(), loadTareas(), loadMetricas(), loadWeekly(), loadGoals()]);
 }
 
 loadAll();
